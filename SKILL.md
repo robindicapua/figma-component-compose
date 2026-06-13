@@ -321,6 +321,27 @@ reducedVariantIds.forEach((id, row) => {
 
 ---
 
+## Paint variable binding — critical API rule
+
+`figma.variables.setBoundVariableForPaint(paint, field, variable)` is a **pure function**.
+It returns a new paint object — it does NOT mutate the original.
+
+**Always use the return value:**
+```javascript
+// CORRECT
+node.fills = node.fills.map(p => figma.variables.setBoundVariableForPaint(p, 'color', myVar));
+node.strokes = node.strokes.map(p => figma.variables.setBoundVariableForPaint(p, 'color', myVar));
+
+// WRONG — silent no-op, no error thrown, binding never applied
+figma.variables.setBoundVariableForPaint(node.strokes[0], 'color', myVar);
+node.strokes = node.strokes; // original is unchanged
+```
+
+`node.setBoundVariable(property, alias)` is a separate API for **scalar** properties only
+(`strokeWeight`, `opacity`, `cornerRadius`, etc.) — do not use it for paint colors.
+
+---
+
 ## Completion checklist
 
 Before marking the task done:
