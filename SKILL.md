@@ -90,6 +90,22 @@ Add `Focus` and `Error` when relevant to the component type.
 - **Columns** = `State` (default → hover → disabled, left to right)
 - Additional boolean axes become separate column groups separated by extra gap
 
+### Mode-invariant tokens
+
+Spacing, size, and radius tokens do **not** change between Light and Dark modes —
+they must alias the same primitive in every mode. When creating or auditing these
+tokens, verify that every mode value is a `VARIABLE_ALIAS` pointing to the same
+source variable. A raw number (e.g. `0`) in any mode is a bug.
+
+Categories that are always mode-invariant in this DS:
+- `spacing/*` (gap, padding)
+- `size/*` (icon sizes, control dimensions)
+- `radius/*` (corner radii)
+
+If you find a mode with a raw value instead of an alias, fix it by calling
+`variable.setValueForMode(modeId, { type: 'VARIABLE_ALIAS', id: primitiveVarId })`
+using the same alias as the other modes.
+
 ### Token → Figma variable path
 
 This DS uses CSS variables in the form `--ds-theme-color-interactive-brand-default`.
@@ -347,7 +363,11 @@ node.strokes = node.strokes; // original is unchanged
 Before marking the task done:
 
 - [ ] Variant property names match code prop names exactly (lowercase values)
-- [ ] All color/spacing/radius values bound to Figma variables — no hardcoded hex
+- [ ] All color, spacing, radius, **and dimension** values bound to Figma variables —
+  no hardcoded hex and no hardcoded px on fixed-size elements (icons, control boxes,
+  avatars). Use `node.setBoundVariable('width', sizeVar)` and
+  `node.setBoundVariable('height', sizeVar)` for elements whose size comes from a
+  `size/*` token.
 - [ ] Auto Layout used on every component frame
 - [ ] `layoutMode = "NONE"` set on component set before any repositioning
 - [ ] Component set named after the component (PascalCase: `Button`, `TextInput`)
