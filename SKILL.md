@@ -70,6 +70,28 @@ Read these files in order:
 
 ## Phase 2 — Plan the Figma structure
 
+### Slots — clarify before building
+
+If the spec or request describes named content regions as "slots" (e.g. a
+Card's Header/Body/Footer, an action group, a list of items), **ask the user
+before Phase 3**:
+
+> Should [SlotName] be a real Figma slot (`isSlot`, instance-editable —
+> designers can add/remove/replace content per instance without detaching),
+> or a plain layout frame with default placeholder content?
+
+Don't assume based on whether the slot has a fixed or dynamic item count.
+"Slot" in a spec can mean either the Figma-mechanism slot or just a named
+layout region — only the user knows which they intend, and guessing means
+redoing the build.
+
+If real Figma slots are wanted, follow the `slot convert` workflow in
+`.agent/skills/claude-skills/skills/figma-component-generator/references/rules/slots.md`
+for each slot frame during Phase 3, after the frame and its default content
+exist. Then apply the additional fixes in
+[`references/rules/slots.md`](references/rules/slots.md) — quirks discovered
+in this project's figma-cli setup that aren't covered by the base workflow.
+
 ### Prop → Figma property mapping
 
 | Code prop | Figma property name | Notes |

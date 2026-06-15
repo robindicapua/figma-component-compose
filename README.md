@@ -141,3 +141,4 @@ derived from the DS token map.
 |---|---|
 | `README.md` | This file — human-readable overview and workflow guide |
 | `SKILL.md` | AI agent instructions — the detailed 4-phase workflow, templates, rules |
+| `references/rules/*.md` | Narrow, project-specific rules referenced from `SKILL.md` (e.g. `slots.md` for figma-cli `slot convert` quirks) |
