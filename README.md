@@ -97,7 +97,8 @@ You have a component set already on a Figma page and want to extend, duplicate,
 or clean it up — for example, adding a new variant, restructuring the grid, or
 rebuilding it with proper variable bindings.
 
-1. Provide the component set node ID (from the Figma URL or `figma-cli find`)
+1. Provide the component set node ID (from the Figma URL, `figma-cli find`, or
+   `figma_search_components` if using Figma Console MCP)
 2. Describe what to change: add a variant, add a state, rename a property,
    rebind to variables, or restructure the grid
 3. The agent inspects the current structure, makes the targeted change, and
@@ -151,6 +152,8 @@ derived from the DS token map.
 This skill is self-contained — Phase 3 inlines the component-generation workflow
 and all supporting reference files live under `references/`. It does not depend
 on the `claude-skills` submodule.
+
+---
 
 ## Tooling backends
 
