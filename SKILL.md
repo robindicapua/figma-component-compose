@@ -15,8 +15,21 @@ or from a documentation/spec requirement. The output is a component set bound to
 DS variables, with variant properties aligned to the code API, wrapped in an
 annotated Section.
 
-**Tooling:** always use figma-cli (`/Users/Nubeh/figma-cli`). Never use Figma
-Console MCP tools.
+**Tooling:** this skill supports two backends — figma-cli (`/Users/Nubeh/figma-cli`)
+and Figma Console MCP (`mcp__figma-console__*`). **Before starting Phase 1, ask
+the user which one to use for this session:**
+
+> Should I use figma-cli or Figma Console MCP for this session?
+
+Use that backend for every Figma operation in the session. All eval-script
+examples in this skill are shown in figma-cli syntax — see
+[`references/execution-backends.md`](references/execution-backends.md) for the
+Figma Console MCP equivalent of each one (the script bodies are identical;
+only the invocation and a few backend-specific behaviors — timeouts, screenshot
+cadence, health checks — differ).
+
+Never use any other Figma MCP tools (e.g. `mcp__claude_ai_Figma__*`) for this
+skill's canvas-write operations.
 
 ---
 
@@ -86,11 +99,8 @@ layout region — only the user knows which they intend, and guessing means
 redoing the build.
 
 If real Figma slots are wanted, follow the `slot convert` workflow in
-`.agent/skills/claude-skills/skills/figma-component-generator/references/rules/slots.md`
-for each slot frame during Phase 3, after the frame and its default content
-exist. Then apply the additional fixes in
-[`references/rules/slots.md`](references/rules/slots.md) — quirks discovered
-in this project's figma-cli setup that aren't covered by the base workflow.
+[`references/rules/slots.md`](references/rules/slots.md) for each slot frame
+during Phase 3, after the frame and its default content exist.
 
 ### Prop → Figma property mapping
 
@@ -154,16 +164,174 @@ cd /Users/Nubeh/figma-cli && node src/index.js eval "(async () => {
 
 ## Phase 3 — Build the component
 
-For the heavy-lifting of the generation step — variable binding, Plugin API patterns,
-auto-layout rules, icon handling, nested components, slots — read and follow:
+### 3.1 Classify component & resolve dependencies
+
+Before querying variables or generating, determine whether this component should
+be generated as a component set, and if so, resolve its atom dependencies.
+
+**Read [`references/rules/atomic-dependencies.md`](references/rules/atomic-dependencies.md)**
+and follow the classification and resolution workflow:
+
+1. **Classify** the component as Visual, Layout Wrapper, or Compositional using
+   the CSS and metadata signals described in the rule
+2. **If Layout Wrapper**: present the clarity checkpoint to the user and wait for
+   their choice before proceeding. Do NOT generate a component set unless the
+   user explicitly requests it.
+3. **If Visual or Compositional**: extract dependency names from metadata
+   (`composition.nestedComponents`, `composition.commonPartners`) and source imports
+4. **Resolve dependencies** using the lookup table or Figma traversal (see below)
+5. **Build a dependency map**: for each found dependency, record the component
+   set ID and available variants. For missing dependencies, warn the user.
+6. **Pass the dependency map** to Step 3.4 (generation) so the eval script uses
+   `createInstance()` instead of raw frames for found dependencies.
+
+#### Dependency resolution with optional lookup table
+
+An external JSON lookup table may exist that maps component names to Figma node
+IDs. Read [`references/figma-map-lookup.md`](references/figma-map-lookup.md) for
+the full schema and generation instructions.
+
+**Resolution order:**
+
+1. **Check for lookup table**: Look for a `figma-map.json` file provided by the
+   user (typically in `~/.claude/data/`). If found, extract the `figmaFileKey`
+   and compare it to this project's Figma file key. If they match, use the map.
+2. **Direct ID lookup (fast path)**: For each dependency name, check
+   `components.<name>.componentSetId` in the map. If non-null, use
+   `figma.getNodeByIdAsync(id)` to fetch the node directly. This avoids
+   cross-page traversal entirely.
+3. **Fallback to findAll (slow path)**: If the map doesn't exist, the file keys
+   don't match, or a dependency isn't in the map, fall back to
+   `figma.root.findAll(n => n.type === 'COMPONENT_SET' && n.name === name)`.
+
+The lookup table is **optional** — the workflow must work without it. Never
+hardcode a specific file path; treat it as an external data source that may or
+may not be present.
+
+### 3.2 Confirm Figma variables exist
+
+Phase 2's "Token → Figma variable path" section already covers querying local
+variables and converting this DS's `--ds-*` tokens to Figma variable paths —
+run that eval script before generating. For additional Plugin API binding
+patterns and code examples, see
+[`references/figma-plugin-api-patterns.md`](references/figma-plugin-api-patterns.md).
+
+### 3.3 Navigate to the target page
+
+Each component has its own page in the Figma file (see the Component references
+table at the end of this skill for known page/set/section IDs). For a new
+component, the page typically follows the `> ComponentName` naming convention.
+
+```bash
+cd /Users/Nubeh/figma-cli && node src/index.js eval "(async () => {
+  const page = figma.root.children.find(p => p.name.trim() === '> ComponentName');
+  if (!page) return 'Page not found';
+  figma.currentPage = page;
+  return 'Navigated to: ' + page.name;
+})()"
+```
+
+### 3.4 Generate the component set
+
+Build a single eval script that creates all variant combinations. The script must:
+
+1. **Load fonts** (load the weights this design system requires — see
+   [`references/figma-typography.md`](references/figma-typography.md))
+2. **Fetch variables** and create a lookup helper
+3. **Create component variants** by iterating over all dimension combinations:
+   - For each combination of variant properties (e.g., `filled + default`), create
+     a `figma.createComponent()`
+   - Name it using Figma's variant syntax, matching code values exactly
+     (lowercase): `Variant=filled, State=default`
+   - Set auto-layout, sizing, padding, gap, corner radius
+   - Set fills/strokes with placeholder colors, then bind to Figma variables
+   - Create child elements (text labels, icons) with proper variable bindings
+   - For children that map to resolved dependencies (from 3.1), use
+     `componentNode.createInstance()` instead of creating raw frames. See
+     [`references/rules/atomic-dependencies.md`](references/rules/atomic-dependencies.md)
+     for instance creation and variant selection patterns.
+   - Add boolean component properties for optional elements
+4. **Combine all variants** using `figma.combineAsVariants(components, figma.currentPage)`
+5. **Arrange in a grid** per Phase 2's Grid layout convention (rows = `Variant`,
+   columns = `State`) — remove auto-layout from the set and position manually
+6. **Return a report** with created count and any unmapped variables
+
+For detailed Figma Plugin API patterns and code examples, read
+[`references/figma-plugin-api-patterns.md`](references/figma-plugin-api-patterns.md).
+
+#### Pattern detection checklist
+
+Before generating, scan the component source for these patterns and load the
+relevant rule:
+
+| Pattern | Detection Signal | Rule File |
+|---|---|---|
+| **Sizing & layout** | Any component | [`references/rules/sizing-modes.md`](references/rules/sizing-modes.md) (always read) |
+| **Icons** | lucide-react imports, icon props, SVG elements, spinners | [`references/figma-icon-library.md`](references/figma-icon-library.md) + [`references/rules/icon-recoloring.md`](references/rules/icon-recoloring.md) |
+| **Typography** | Text nodes, font tokens, text-style CSS properties | [`references/figma-typography.md`](references/figma-typography.md) |
+| **Nested components** | `.map()` loops, repeated elements with per-item state (isActive, isSelected) | [`references/rules/nested-components.md`](references/rules/nested-components.md) |
+| **Dynamic item count** | Positive: prop is an array mapped with `.map()`; runtime-determined count; no fixed upper bound. Negative: named structural children (header/footer); fixed count (OTP=6, rating=5); single-child wrapper (Tooltip trigger); render-props | [`references/rules/slots.md`](references/rules/slots.md) |
+| **Floating overlays** | Imports from `@floating-ui/*`, `@radix-ui/react-popover`, `@radix-ui/react-dropdown-menu`, `@radix-ui/react-tooltip`, `cmdk`, `@headlessui/react`; uses `createPortal`; `position: absolute\|fixed` with high z-index on the expanded part; conditional render of menu/dropdown/popover content | [`references/rules/floating-overlays.md`](references/rules/floating-overlays.md) |
+| **Atomic dependencies** | Molecule/organism; metadata `nestedComponents` non-empty; imports design-system components | [`references/rules/atomic-dependencies.md`](references/rules/atomic-dependencies.md) |
+
+**Cross-dependency**: `Nested components` and `Dynamic item count` often fire
+together. When a parent maps over items AND each item has per-item state
+(isActive, isSelected), you need BOTH: create a sub-component set per
+`nested-components.md`, then use slot Pattern A (instance-filled) in the parent
+per `slots.md`. If items are heterogeneous or have no per-item state, only
+`slots.md` applies (Pattern B, frame-filled).
+
+#### Key rules for the eval script
+
+- Wrap everything in `(async () => { ... })()`
+- Always set a placeholder fill/stroke BEFORE binding a variable
+- Append children to parent BEFORE setting `layoutSizingHorizontal`
+- Apply text style (`textStyleId`) BEFORE setting `.characters` (avoids Inter
+  font loading issues)
+- Return `JSON.stringify()` for structured results
+- Use `figma.variables.setBoundVariableForPaint()` for variable binding (see the
+  critical API rule below)
+- For complex scripts, write to a temp `.js` file and use `eval --file <path>`,
+  then clean up after
+- Icons should use this project's icon component set when available — read
+  [`references/figma-icon-library.md`](references/figma-icon-library.md)
+- All text must use the project's font family via Figma text styles — read
+  [`references/figma-typography.md`](references/figma-typography.md)
+
+### 3.5 Report results
+
+After generation, present a summary:
 
 ```
-.agent/skills/claude-skills/skills/figma-component-generator/SKILL.md
+## Component Generated: Badge
+
+- **Variants created**: 12 (4 variants x 3 states)
+- **Properties**: Variant, State, Show Dot (boolean)
+- **Variables bound**: 24 fill bindings, 12 stroke bindings
+- **Unmapped tokens**: (none)
+  OR
+- **Unmapped tokens**:
+  - `--ds-theme-color-utility-coral` -- no matching Figma variable found
+- **Dependencies resolved**: 2/2 (Icon, Badge Dot found)
+  OR
+- **Dependencies**: none (atom component)
 ```
 
-That skill covers Steps 1–7 in full. Apply its eval script patterns here.
+If there are unmapped tokens, suggest the user create the missing variables in
+Figma or check for naming mismatches.
 
-**Project-specific overrides that take precedence over the generic skill:**
+### 3.6 Operational notes
+
+- Never delete existing content on the page. Only add new nodes.
+- The figma-cli daemon has a 60-second timeout. For very large component sets
+  (100+ variants), consider splitting into multiple eval calls.
+- If the connection is lost mid-generation, run
+  `cd /Users/Nubeh/figma-cli && node src/index.js daemon restart` and retry.
+- The eval script can be substantial in size — the daemon handles large payloads.
+
+---
+
+**Project-specific overrides that take precedence over the rest of Phase 3:**
 
 ### Font
 Always inspect existing text nodes to confirm font style names before loading.
@@ -405,3 +573,9 @@ Before marking the task done:
 |---|---|---|---|---|
 | Button | Button | `100:36` | `104:40` | 4 rows × 3 cols (Variant × State) |
 | Text Input | TextInput | `1:245` | `105:60` | 4 rows × 2 cols (State × Show Label) |
+
+These node IDs are stable on either backend as long as the nodes haven't been
+deleted/recreated. If `figma.getNodeByIdAsync(id)` returns null, re-resolve by
+page/name (`figma_search_components` on Figma Console MCP, or
+`figma.root.findAll(...)` on either backend) rather than assuming the table is
+wrong.

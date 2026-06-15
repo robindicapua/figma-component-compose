@@ -141,4 +141,21 @@ derived from the DS token map.
 |---|---|
 | `README.md` | This file — human-readable overview and workflow guide |
 | `SKILL.md` | AI agent instructions — the detailed 4-phase workflow, templates, rules |
-| `references/rules/*.md` | Narrow, project-specific rules referenced from `SKILL.md` (e.g. `slots.md` for figma-cli `slot convert` quirks) |
+| `references/figma-plugin-api-patterns.md` | Figma Plugin API patterns and code examples for variable binding, auto-layout, etc. |
+| `references/figma-typography.md` | Font loading and text-style rules |
+| `references/figma-icon-library.md` | Icon component set lookup and usage |
+| `references/figma-map-lookup.md` | Optional external `figma-map.json` lookup table schema for dependency resolution |
+| `references/execution-backends.md` | Maps every figma-cli command/eval pattern used in this skill to its Figma Console MCP equivalent |
+| `references/rules/*.md` | Narrow, single-topic rules referenced from `SKILL.md` Phase 3 (sizing modes, icon recoloring, nested components, slots, floating overlays, atomic dependencies) |
+
+This skill is self-contained — Phase 3 inlines the component-generation workflow
+and all supporting reference files live under `references/`. It does not depend
+on the `claude-skills` submodule.
+
+## Tooling backends
+
+This skill supports two interchangeable backends for talking to Figma Desktop:
+**figma-cli** and **Figma Console MCP**. At the start of a session, the agent
+asks which one to use, then uses it consistently for every Figma operation in
+that session. See `references/execution-backends.md` for the mapping between
+the two.
