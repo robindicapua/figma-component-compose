@@ -329,6 +329,20 @@ Figma or check for naming mismatches.
   `cd /Users/Nubeh/figma-cli && node src/index.js daemon restart` and retry.
 - The eval script can be substantial in size — the daemon handles large payloads.
 
+### 3.7 Token binding audit
+
+Before moving to Phase 4 (and after any ad-hoc fix made outside the main build
+script — new variant, restructure, style tweak), run the token-binding audit
+from [`references/rules/token-audit.md`](references/rules/token-audit.md)
+against the component set / modified nodes. It catches hardcoded
+`cornerRadius`, `strokeWeight`, padding, and `itemSpacing` values that
+`figma_lint_design` does not check.
+
+If the audit finds an unbound value with no matching variable, **stop and ask
+the user** whether to create a new token, bind to an existing one with a
+different value, or leave it un-tokenized intentionally — never pick a value
+silently.
+
 ---
 
 **Project-specific overrides that take precedence over the rest of Phase 3:**
@@ -558,6 +572,9 @@ Before marking the task done:
   avatars). Use `node.setBoundVariable('width', sizeVar)` and
   `node.setBoundVariable('height', sizeVar)` for elements whose size comes from a
   `size/*` token.
+- [ ] Token binding audit ([`references/rules/token-audit.md`](references/rules/token-audit.md))
+  run on the final node tree — 0 unbound properties, or each flagged value
+  resolved with the user (new token created, or explicitly accepted as un-tokenized)
 - [ ] Auto Layout used on every component frame
 - [ ] `layoutMode = "NONE"` set on component set before any repositioning
 - [ ] Component set named after the component (PascalCase: `Button`, `TextInput`)
