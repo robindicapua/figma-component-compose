@@ -36,7 +36,7 @@ and you want to create or sync its Figma representation.
 3. It maps each prop to a Figma variant property (`variant` → `Variant`,
    `disabled` → `State=Disabled`, etc.)
 4. It resolves DS CSS tokens to Figma variable paths
-   (`--ds-theme-color-interactive-brand-default` → `theme/color/interactive/brand/default`)
+   (`--ds-color-interactive-brand-default` → `color/interactive/brand/default`, a Semantic-collection variable)
 5. It builds the component set, binds variables, and annotates the section
 
 **Prompt example:**

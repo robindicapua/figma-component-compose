@@ -140,17 +140,22 @@ using the same alias as the other modes.
 
 ### Token → Figma variable path
 
-This DS uses CSS variables in the form `--ds-theme-color-interactive-brand-default`.
-Strip `--ds-` prefix and replace `-` with `/` to get the Figma variable path:
-`theme/color/interactive/brand/default`.
+This DS uses CSS variables in the form `--ds-color-interactive-brand-default`.
+Strip the `--ds-` prefix and replace `-` with `/` to get the Figma variable path:
+`color/interactive/brand/default` (a Semantic-collection variable).
 
 ```
-CSS variable                              → Figma variable path
---ds-theme-color-interactive-brand-default  → theme/color/interactive/brand/default
---ds-theme-color-content-inverse            → theme/color/content/inverse
---ds-theme-spacing-content-md               → theme/spacing/content-md
---ds-theme-radius-default                   → theme/radius/default
+CSS variable                          → Figma variable path
+--ds-color-interactive-brand-default  → color/interactive/brand/default   (Semantic)
+--ds-color-content-inverse            → color/content/inverse             (Semantic)
+--ds-spacing-content-md               → spacing/content-md                (Semantic)
+--ds-radius-default                   → radius/default                    (Semantic)
 ```
+
+The tier is carried by the **collection** (Foundation / Semantic), not by a name
+segment — there is no `theme`/`semantic` prefix on either side. Role-named variables
+(`color/background/*`, `color/content/*`, …) live in **Semantic**; scale-named ones
+(`color/gray/300`, `spacing/4`) live in **Foundation**. Bind components to Semantic.
 
 Before building, confirm which variables exist in the file:
 ```bash
@@ -311,7 +316,7 @@ After generation, present a summary:
 - **Unmapped tokens**: (none)
   OR
 - **Unmapped tokens**:
-  - `--ds-theme-color-utility-coral` -- no matching Figma variable found
+  - `--ds-color-utility-coral` -- no matching Figma variable found
 - **Dependencies resolved**: 2/2 (Icon, Badge Dot found)
   OR
 - **Dependencies**: none (atom component)
@@ -363,17 +368,17 @@ Use DS semantic spacing tokens, not arbitrary px values:
 
 | Role | Token | Value |
 |---|---|---|
-| Component internal padding (default) | `--ds-theme-spacing-content-md` | 16px |
-| Component internal padding (compact) | `--ds-theme-spacing-content-sm` | 12px |
-| Gap between elements | `--ds-theme-spacing-gap-sm` | 12px |
-| Gap (tight) | `--ds-theme-spacing-gap-xs` | 4px |
+| Component internal padding (default) | `--ds-spacing-content-md` | 16px |
+| Component internal padding (compact) | `--ds-spacing-content-sm` | 12px |
+| Gap between elements | `--ds-spacing-gap-sm` | 12px |
+| Gap (tight) | `--ds-spacing-gap-xs` | 4px |
 
 ### Corner radius
 | Role | Token | Value |
 |---|---|---|
-| Default rounding | `--ds-theme-radius-default` | 8px |
-| Pill/full-rounded | `--ds-theme-radius-full` | 32px |
-| Sharp (tags, badges) | `--ds-theme-radius-sharp` | 4px |
+| Default rounding | `--ds-radius-default` | 8px |
+| Pill/full-rounded | `--ds-radius-full` | 32px |
+| Sharp (tags, badges) | `--ds-radius-sharp` | 4px |
 
 ### Variant naming
 Figma variant names must match code values exactly (lowercase):
